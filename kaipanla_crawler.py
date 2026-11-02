@@ -1481,7 +1481,7 @@ class KaipanlaCrawler:
         except Exception as e:
             print(f"请求实时市场情绪失败: {e}")
             import traceback
-            traceback.prprint_exc()
+            traceback.print_exc()
             return {}
             print(f"请求实时连板梯队指数失败: {e}")
             import traceback
