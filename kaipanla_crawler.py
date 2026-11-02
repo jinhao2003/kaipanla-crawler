@@ -97,13 +97,13 @@ class KaipanlaCrawler:
             "Accept-Encoding": "gzip",
         }
     
-    def _request(self, data_params, date, timeout=None):
+    def _request(self, data_params, date, timeout=60):
         """发送POST请求
         
         Args:
             data_params: 请求参数
             date: 日期
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
         """
         params = {"apiv": "w42", "PhoneOSNew": "1", "VerSion": "5.21.0.2"}
         data = {
@@ -230,14 +230,14 @@ class KaipanlaCrawler:
         
         return df
     
-    def get_new_high_data(self, end_date, start_date=None, timeout=None):
+    def get_new_high_data(self, end_date, start_date=None, timeout=60):
         """
         获取百日新高数据
         
         Args:
             end_date: 结束日期，格式YYYY-MM-DD
             start_date: 起始日期，格式YYYY-MM-DD，可选
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             pd.Series: 索引为日期，值为今日新增新高数量
@@ -415,14 +415,14 @@ class KaipanlaCrawler:
         } for i in result.get("info", []) if len(i) >= 5])
     
 
-    def get_sector_ranking(self, date=None, index=0, timeout=None):
+    def get_sector_ranking(self, date=None, index=0, timeout=60):
         """
         获取涨停原因板块数据
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为当前日期
             index: 分页索引，默认0（第一页）
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含板块统计和详细列表的字典
@@ -551,13 +551,13 @@ class KaipanlaCrawler:
             print(f"请求板块数据失败 ({date}): {e}")
             return {"summary": {}, "sectors": []}
     
-    def get_consecutive_limit_up(self, date=None, timeout=None):
+    def get_consecutive_limit_up(self, date=None, timeout=60):
         """
         获取指定日期的连板梯队情况
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为当前日期
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含连板梯队信息
@@ -700,13 +700,13 @@ class KaipanlaCrawler:
             "ladder": ladder_data
         }
     
-    def get_sector_limit_up_ladder(self, date=None, timeout=None):
+    def get_sector_limit_up_ladder(self, date=None, timeout=60):
         """
         获取板块连板梯队（历史或实时）
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含板块连板梯队信息
@@ -886,13 +886,13 @@ class KaipanlaCrawler:
                 "sectors": []
             }
     
-    def get_market_limit_up_ladder(self, date=None, timeout=None):
+    def get_market_limit_up_ladder(self, date=None, timeout=60):
         """
         获取全市场连板梯队（历史或实时）
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含全市场连板梯队信息
@@ -1085,13 +1085,13 @@ class KaipanlaCrawler:
                 }
             }
     
-    def get_historical_broken_limit_up(self, date, timeout=None):
+    def get_historical_broken_limit_up(self, date, timeout=60):
         """
         获取历史炸板股数据（曾涨停但未封住的个股）
         
         Args:
             date: 日期，格式YYYY-MM-DD
-            timeout: 超时时间（秒）
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             list: 炸板股列表，每个元素包含：
@@ -1188,7 +1188,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return []
     
-    def get_sector_capital_data(self, sector_code, date=None, timeout=None):
+    def get_sector_capital_data(self, sector_code, date=None, timeout=60):
         """
         获取板块资金成交额数据
         
@@ -1309,7 +1309,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_sector_strength_ndays(self, end_date, num_days=7, timeout=None):
+    def get_sector_strength_ndays(self, end_date, num_days=7, timeout=60):
         """
         获取N日板块强度排名数据
         
@@ -1407,7 +1407,7 @@ class KaipanlaCrawler:
         
         return df
     
-    def get_realtime_market_mood(self, timeout=None):
+    def get_realtime_market_mood(self, timeout=60):
         """
         获取实时市场情绪数据（涨停家数、跌停家数、上涨下跌家数及大盘数据）
         
@@ -1488,7 +1488,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_realtime_actual_limit_up_down(self, timeout=None):
+    def get_realtime_actual_limit_up_down(self, timeout=60):
         """
         获取实时实际涨跌停数据
         
@@ -1552,7 +1552,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_realtime_board_stocks(self, board_type=1, timeout=None):
+    def get_realtime_board_stocks(self, board_type=1, timeout=60):
         """
         获取实时指定连板的股票列表
         
@@ -1671,7 +1671,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return []
     
-    def get_realtime_all_boards_stocks(self, timeout=None):
+    def get_realtime_all_boards_stocks(self, timeout=60):
         """
         获取实时所有连板的股票列表（首板到五板以上）
         
@@ -1739,7 +1739,7 @@ class KaipanlaCrawler:
         
         return all_boards
     
-    def get_board_stocks_count_and_list(self, board_type, timeout=None):
+    def get_board_stocks_count_and_list(self, board_type, timeout=60):
         """
         获取指定连板的个股数量和个股列表
         
@@ -1782,7 +1782,7 @@ class KaipanlaCrawler:
         
         return count, stocks
     
-    def get_realtime_index_trend(self, stock_id="801900", time="15:00", timeout=None):
+    def get_realtime_index_trend(self, stock_id="801900", time="15:00", timeout=60):
         """
         获取实时指数趋势数据（昨日涨停今日表现、昨日断板今日表现等）
         
@@ -1871,7 +1871,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_realtime_index_list(self, stock_ids=None, timeout=None):
+    def get_realtime_index_list(self, stock_ids=None, timeout=60):
         """
         获取实时指数列表数据（批量获取多个指数）
         
@@ -1959,7 +1959,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
 
-    def get_realtime_sharp_withdrawal(self, timeout=None):
+    def get_realtime_sharp_withdrawal(self, timeout=60):
         """
         获取实时大幅回撤股票数据
         
@@ -2060,7 +2060,7 @@ class KaipanlaCrawler:
             print(f"炸板率: {data['blown_limit_up_rate']:.2f}%")
             print(f"昨日涨停今表现: {data['yesterday_limit_up_performance']:.2f}%")
 
-    def get_realtime_rise_fall_analysis(self, timeout=None):
+    def get_realtime_rise_fall_analysis(self, timeout=60):
         """
         获取实时涨跌分析数据
 
@@ -2177,7 +2177,7 @@ class KaipanlaCrawler:
         Args:
             sector_code: 板块代码，如 "801346"（半导体）
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认60秒
+            timeout: 超时时间（秒），默认300秒
             
         Returns:
             dict: 包含板块分时数据
@@ -2447,7 +2447,7 @@ class KaipanlaCrawler:
         Args:
             stock_code: 股票代码，如 "002498"
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认60秒
+            timeout: 超时时间（秒），默认300秒
             
         Returns:
             dict: 包含个股分时数据
@@ -2859,7 +2859,7 @@ class KaipanlaCrawler:
                        - SZ399006: 创业板指
                        - SH000300: 沪深300
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认60秒
+            timeout: 超时时间（秒），默认300秒
             
         Returns:
             dict: 包含指数分时数据

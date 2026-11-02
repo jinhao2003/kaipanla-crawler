@@ -365,7 +365,7 @@ for sector in data['sectors']:
 **获取大盘指数分时数据**
 
 ```python
-def get_index_intraday(index_code="SH000001", date=None, timeout=60)
+def get_index_intraday(index_code="SH000001", date=None, timeout=300)
 ```
 
 **功能**: 获取大盘指数的分时数据，用于盘面联动分析、识别共振点等。
@@ -377,7 +377,7 @@ def get_index_intraday(index_code="SH000001", date=None, timeout=60)
   - `SZ399006`: 创业板指
   - `SH000300`: 沪深300
 - `date` (str, 可选): 日期，格式 `YYYY-MM-DD`，默认为None（获取实时数据）
-- `timeout` (int): 超时时间（秒），默认60秒
+- `timeout` (int): 超时时间（秒），默认300秒
 
 **返回**: `dict`
 - `index_code`: 指数代码
