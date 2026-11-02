@@ -20,7 +20,7 @@
 
 import requests
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import urllib3
 import time  # 添加time模块用于sleep延迟
@@ -503,36 +503,21 @@ class KaipanlaCrawler:
                 # 解析该板块的涨停股票
                 # 原始数据数组结构（基于实际API返回）:
                 # [0]股票代码, [1]股票名称, [2]?, [3]?, [4]涨停价,
-                # [5]?, [6]未知(可能是时间戳), [7]?, [8]流通市值(元), [9]连板天数,
+                # [5]?, [6]首次封板时间(Unix时间戳), [7]?, [8]流通市值(元), [9]连板天数,
                 # [10]连板次数, [11]概念标签, [12]封单额(元), [13]主力资金(元),
-                # [14]首次封板时间(小时.分钟比例), [15]总市值(元), [16]涨停原因, [17]主题, [18]是否首板
+                # [14]换手率(%), [15]总市值(元), [16]涨停原因, [17]主题, [18]是否首板
                 # 注意: 该API不提供个股成交额数据
                 for stock in sector_data.get("StockList", []):
                     if len(stock) >= 19:  # 确保数据完整
-                        # 转换封板时间格式
-                        # API返回格式: 小时.分钟比例，如 20.41 表示 20:24
-                        seal_time_raw = stock[14] if stock[14] else ""
+                        # 首次封板时间是Unix时间戳，按北京时间转换为 HH:MM:SS
                         seal_time = ""
-                        if seal_time_raw:
+                        if stock[6]:
                             try:
-                                # 尝试解析为时间格式
-                                hour = int(seal_time_raw)
-                                minute_decimal = seal_time_raw - hour
-                                minute = int(round(minute_decimal * 60))
-
-                                # 处理分钟进位
-                                if minute >= 60:
-                                    hour += minute // 60
-                                    minute = minute % 60
-
-                                # 只接受有效的小时范围 (0-23)
-                                if 0 <= hour <= 23:
-                                    seal_time = f"{hour:02d}:{minute:02d}:00"
-                                else:
-                                    # 超出范围的时间，可能是数据错误
-                                    seal_time = str(seal_time_raw)
-                            except:
-                                seal_time = str(seal_time_raw)
+                                seal_time = datetime.fromtimestamp(
+                                    int(stock[6]), timezone(timedelta(hours=8))
+                                ).strftime("%H:%M:%S")
+                            except (TypeError, ValueError, OSError):
+                                seal_time = str(stock[6])
 
                         stock_info = {
                             "股票代码": stock[0],
@@ -546,6 +531,7 @@ class KaipanlaCrawler:
                             "封单额": stock[12] if stock[12] else 0,  # 封单额（元）
                             "主力资金": stock[13] if stock[13] else 0,  # 主力资金净额（元）
                             "首次封板时间": seal_time,  # 首次封板时间（已格式化）
+                            "换手率": stock[14] if stock[14] else 0,  # 换手率（%）
                             "总市值": stock[15] if stock[15] else 0,  # 总市值（元）
                             "涨停原因": stock[16] if stock[16] else "",
                             "主题": stock[17] if stock[17] else "",
