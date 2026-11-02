@@ -319,16 +319,17 @@ def get_sector_ranking(date=None, index=0, timeout=60)
                 {
                     "股票代码": "600785",
                     "股票名称": "新华百货",
-                    "涨停价": 15.50,
+                    "涨幅": 10.02,
                     "成交额": 50000000,
-                    "流通市值": 2000000000,
                     "连板天数": 4,
                     "连板描述": "4连板",
                     "连板次数": 1,
                     "概念标签": "新能源、电力设备",
                     "封单额": 100000000,
-                    "总市值": 3000000000,
+                    "实际流通市值": 3000000000,
+                    "首次封板时间": "09:30:00",
                     "涨停时间": "09:30:00",
+                    "换手率": 3.39,
                     "主力资金": 20000000,
                     "主题": "新能源",
                     "涨停原因": "政策利好",
@@ -364,7 +365,7 @@ for sector in data['sectors']:
 **获取大盘指数分时数据**
 
 ```python
-def get_index_intraday(index_code="SH000001", date=None, timeout=60)
+def get_index_intraday(index_code="SH000001", date=None, timeout=300)
 ```
 
 **功能**: 获取大盘指数的分时数据，用于盘面联动分析、识别共振点等。
@@ -376,7 +377,7 @@ def get_index_intraday(index_code="SH000001", date=None, timeout=60)
   - `SZ399006`: 创业板指
   - `SH000300`: 沪深300
 - `date` (str, 可选): 日期，格式 `YYYY-MM-DD`，默认为None（获取实时数据）
-- `timeout` (int): 超时时间（秒），默认60秒
+- `timeout` (int): 超时时间（秒），默认300秒
 
 **返回**: `dict`
 - `index_code`: 指数代码

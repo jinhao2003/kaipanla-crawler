@@ -33,7 +33,7 @@ def test_limit_up_sectors():
         # 打印前3只涨停股票
         for j, stock in enumerate(sector['stocks'][:3], 1):
             print(f"   {j}) {stock['股票代码']} {stock['股票名称']}")
-            print(f"      涨停价: {stock['涨停价']}, {stock['连板描述']}")
+            print(f"      涨幅: {stock['涨幅']}%, {stock['连板描述']}")
             print(f"      概念: {stock['概念标签']}")
             print(f"      主题: {stock['主题']}")
             if stock['涨停原因'] and isinstance(stock['涨停原因'], str):

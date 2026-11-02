@@ -20,7 +20,7 @@
 
 import requests
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import urllib3
 import time  # 添加time模块用于sleep延迟
@@ -97,13 +97,13 @@ class KaipanlaCrawler:
             "Accept-Encoding": "gzip",
         }
     
-    def _request(self, data_params, date, timeout=None):
+    def _request(self, data_params, date, timeout=60):
         """发送POST请求
         
         Args:
             data_params: 请求参数
             date: 日期
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
         """
         params = {"apiv": "w42", "PhoneOSNew": "1", "VerSion": "5.21.0.2"}
         data = {
@@ -230,14 +230,14 @@ class KaipanlaCrawler:
         
         return df
     
-    def get_new_high_data(self, end_date, start_date=None, timeout=None):
+    def get_new_high_data(self, end_date, start_date=None, timeout=60):
         """
         获取百日新高数据
         
         Args:
             end_date: 结束日期，格式YYYY-MM-DD
             start_date: 起始日期，格式YYYY-MM-DD，可选
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             pd.Series: 索引为日期，值为今日新增新高数量
@@ -415,14 +415,14 @@ class KaipanlaCrawler:
         } for i in result.get("info", []) if len(i) >= 5])
     
 
-    def get_sector_ranking(self, date=None, index=0, timeout=None):
+    def get_sector_ranking(self, date=None, index=0, timeout=60):
         """
         获取涨停原因板块数据
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为当前日期
             index: 分页索引，默认0（第一页）
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含板块统计和详细列表的字典
@@ -502,51 +502,36 @@ class KaipanlaCrawler:
                 
                 # 解析该板块的涨停股票
                 # 原始数据数组结构（基于实际API返回）:
-                # [0]股票代码, [1]股票名称, [2]?, [3]?, [4]涨停价,
-                # [5]?, [6]未知(可能是时间戳), [7]?, [8]流通市值(元), [9]连板天数,
-                # [10]连板次数, [11]概念标签, [12]封单额(元), [13]主力资金(元),
-                # [14]首次封板时间(小时.分钟比例), [15]总市值(元), [16]涨停原因, [17]主题, [18]是否首板
-                # 注意: 该API不提供个股成交额数据
+                # [0]股票代码, [1]股票名称, [2]?, [3]?, [4]涨幅(%),
+                # [5]?, [6]首次封板时间(Unix时间戳), [7]?, [8]封单额(元), [9]连板天数,
+                # [10]连板次数, [11]概念标签, [12]主力净额(元), [13]成交额(元),
+                # [14]换手率(%), [15]实际流通市值(元), [16]涨停原因, [17]主题, [18]是否首板
+                # 与 get_historical_broken_limit_up 的数组格式一致
                 for stock in sector_data.get("StockList", []):
                     if len(stock) >= 19:  # 确保数据完整
-                        # 转换封板时间格式
-                        # API返回格式: 小时.分钟比例，如 20.41 表示 20:24
-                        seal_time_raw = stock[14] if stock[14] else ""
+                        # 首次封板时间是Unix时间戳，按北京时间转换为 HH:MM:SS
                         seal_time = ""
-                        if seal_time_raw:
+                        if stock[6]:
                             try:
-                                # 尝试解析为时间格式
-                                hour = int(seal_time_raw)
-                                minute_decimal = seal_time_raw - hour
-                                minute = int(round(minute_decimal * 60))
-
-                                # 处理分钟进位
-                                if minute >= 60:
-                                    hour += minute // 60
-                                    minute = minute % 60
-
-                                # 只接受有效的小时范围 (0-23)
-                                if 0 <= hour <= 23:
-                                    seal_time = f"{hour:02d}:{minute:02d}:00"
-                                else:
-                                    # 超出范围的时间，可能是数据错误
-                                    seal_time = str(seal_time_raw)
-                            except:
-                                seal_time = str(seal_time_raw)
+                                seal_time = datetime.fromtimestamp(
+                                    int(stock[6]), timezone(timedelta(hours=8))
+                                ).strftime("%H:%M:%S")
+                            except (TypeError, ValueError, OSError):
+                                seal_time = str(stock[6])
 
                         stock_info = {
                             "股票代码": stock[0],
                             "股票名称": stock[1],
-                            "涨停价": round(stock[4], 2) if stock[4] else 0,
-                            "成交额": 0,  # 该API不提供个股成交额，需要从其他数据源获取
-                            "流通市值": stock[8] if stock[8] else 0,  # 流通市值（元）
+                            "涨幅": round(stock[4], 2) if stock[4] else 0,  # 涨幅（%）
+                            "成交额": stock[13] if stock[13] else 0,  # 成交额（元）
                             "连板天数": stock[9],
                             "连板次数": stock[10],
                             "概念标签": stock[11],
-                            "封单额": stock[12] if stock[12] else 0,  # 封单额（元）
-                            "主力资金": stock[13] if stock[13] else 0,  # 主力资金净额（元）
+                            "封单额": stock[8] if stock[8] else 0,  # 封单额（元）
+                            "主力资金": stock[12] if stock[12] else 0,  # 主力资金净额（元）
                             "首次封板时间": seal_time,  # 首次封板时间（已格式化）
-                            "总市值": stock[15] if stock[15] else 0,  # 总市值（元）
+                            "换手率": stock[14] if stock[14] else 0,  # 换手率（%）
+                            "实际流通市值": stock[15] if stock[15] else 0,  # 实际流通市值（元）
                             "涨停原因": stock[16] if stock[16] else "",
                             "主题": stock[17] if stock[17] else "",
                             "是否首板": stock[18] if len(stock) > 18 else 0,
@@ -566,13 +551,13 @@ class KaipanlaCrawler:
             print(f"请求板块数据失败 ({date}): {e}")
             return {"summary": {}, "sectors": []}
     
-    def get_consecutive_limit_up(self, date=None, timeout=None):
+    def get_consecutive_limit_up(self, date=None, timeout=60):
         """
         获取指定日期的连板梯队情况
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为当前日期
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含连板梯队信息
@@ -715,13 +700,13 @@ class KaipanlaCrawler:
             "ladder": ladder_data
         }
     
-    def get_sector_limit_up_ladder(self, date=None, timeout=None):
+    def get_sector_limit_up_ladder(self, date=None, timeout=60):
         """
         获取板块连板梯队（历史或实时）
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含板块连板梯队信息
@@ -901,13 +886,13 @@ class KaipanlaCrawler:
                 "sectors": []
             }
     
-    def get_market_limit_up_ladder(self, date=None, timeout=None):
+    def get_market_limit_up_ladder(self, date=None, timeout=60):
         """
         获取全市场连板梯队（历史或实时）
         
         Args:
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认1600秒
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             dict: 包含全市场连板梯队信息
@@ -1100,13 +1085,13 @@ class KaipanlaCrawler:
                 }
             }
     
-    def get_historical_broken_limit_up(self, date, timeout=None):
+    def get_historical_broken_limit_up(self, date, timeout=60):
         """
         获取历史炸板股数据（曾涨停但未封住的个股）
         
         Args:
             date: 日期，格式YYYY-MM-DD
-            timeout: 超时时间（秒）
+            timeout: 超时时间（秒），默认60秒
             
         Returns:
             list: 炸板股列表，每个元素包含：
@@ -1203,7 +1188,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return []
     
-    def get_sector_capital_data(self, sector_code, date=None, timeout=None):
+    def get_sector_capital_data(self, sector_code, date=None, timeout=60):
         """
         获取板块资金成交额数据
         
@@ -1324,7 +1309,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_sector_strength_ndays(self, end_date, num_days=7, timeout=None):
+    def get_sector_strength_ndays(self, end_date, num_days=7, timeout=60):
         """
         获取N日板块强度排名数据
         
@@ -1422,7 +1407,7 @@ class KaipanlaCrawler:
         
         return df
     
-    def get_realtime_market_mood(self, timeout=None):
+    def get_realtime_market_mood(self, timeout=60):
         """
         获取实时市场情绪数据（涨停家数、跌停家数、上涨下跌家数及大盘数据）
         
@@ -1496,14 +1481,14 @@ class KaipanlaCrawler:
         except Exception as e:
             print(f"请求实时市场情绪失败: {e}")
             import traceback
-            traceback.prprint_exc()
+            traceback.print_exc()
             return {}
             print(f"请求实时连板梯队指数失败: {e}")
             import traceback
             traceback.print_exc()
             return {}
     
-    def get_realtime_actual_limit_up_down(self, timeout=None):
+    def get_realtime_actual_limit_up_down(self, timeout=60):
         """
         获取实时实际涨跌停数据
         
@@ -1567,7 +1552,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_realtime_board_stocks(self, board_type=1, timeout=None):
+    def get_realtime_board_stocks(self, board_type=1, timeout=60):
         """
         获取实时指定连板的股票列表
         
@@ -1686,7 +1671,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return []
     
-    def get_realtime_all_boards_stocks(self, timeout=None):
+    def get_realtime_all_boards_stocks(self, timeout=60):
         """
         获取实时所有连板的股票列表（首板到五板以上）
         
@@ -1754,7 +1739,7 @@ class KaipanlaCrawler:
         
         return all_boards
     
-    def get_board_stocks_count_and_list(self, board_type, timeout=None):
+    def get_board_stocks_count_and_list(self, board_type, timeout=60):
         """
         获取指定连板的个股数量和个股列表
         
@@ -1797,7 +1782,7 @@ class KaipanlaCrawler:
         
         return count, stocks
     
-    def get_realtime_index_trend(self, stock_id="801900", time="15:00", timeout=None):
+    def get_realtime_index_trend(self, stock_id="801900", time="15:00", timeout=60):
         """
         获取实时指数趋势数据（昨日涨停今日表现、昨日断板今日表现等）
         
@@ -1886,7 +1871,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
     
-    def get_realtime_index_list(self, stock_ids=None, timeout=None):
+    def get_realtime_index_list(self, stock_ids=None, timeout=60):
         """
         获取实时指数列表数据（批量获取多个指数）
         
@@ -1974,7 +1959,7 @@ class KaipanlaCrawler:
             traceback.print_exc()
             return {}
 
-    def get_realtime_sharp_withdrawal(self, timeout=None):
+    def get_realtime_sharp_withdrawal(self, timeout=60):
         """
         获取实时大幅回撤股票数据
         
@@ -2075,7 +2060,7 @@ class KaipanlaCrawler:
             print(f"炸板率: {data['blown_limit_up_rate']:.2f}%")
             print(f"昨日涨停今表现: {data['yesterday_limit_up_performance']:.2f}%")
 
-    def get_realtime_rise_fall_analysis(self, timeout=None):
+    def get_realtime_rise_fall_analysis(self, timeout=60):
         """
         获取实时涨跌分析数据
 
@@ -2192,7 +2177,7 @@ class KaipanlaCrawler:
         Args:
             sector_code: 板块代码，如 "801346"（半导体）
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认60秒
+            timeout: 超时时间（秒），默认300秒
             
         Returns:
             dict: 包含板块分时数据
@@ -2462,7 +2447,7 @@ class KaipanlaCrawler:
         Args:
             stock_code: 股票代码，如 "002498"
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认60秒
+            timeout: 超时时间（秒），默认300秒
             
         Returns:
             dict: 包含个股分时数据
@@ -2874,7 +2859,7 @@ class KaipanlaCrawler:
                        - SZ399006: 创业板指
                        - SH000300: 沪深300
             date: 日期，格式YYYY-MM-DD，默认为None（获取实时数据）
-            timeout: 超时时间（秒），默认60秒
+            timeout: 超时时间（秒），默认300秒
             
         Returns:
             dict: 包含指数分时数据
@@ -3343,198 +3328,6 @@ class KaipanlaCrawler:
             if driver:
                 driver.quit()
             return pd.Series()
-
-    def get_plate_news(self, plate_id: str, index: int = 0, page_size: int = 30, timeout: int = 1600):
-        """获取指定板块的最新要闻
-        
-        Args:
-            plate_id: 板块代码，如 "801070"（化工）
-            index: 分页索引，默认0（第一页）
-            page_size: 每页数量，默认30条
-            timeout: 超时时间（秒），默认1600秒
-            
-        Returns:
-            dict: 包含板块要闻列表
-                - plate_id: 板块代码
-                - news_list: 要闻列表，每条包含：
-                    - id: 新闻ID
-                    - title: 标题
-                    - content: 内容
-                    - time: 发布时间（时间戳）
-                    - datetime: 发布时间（datetime对象）
-                    - type: 类型（1=快讯，2=新闻）
-                - total_count: 总数量
-        
-        示例:
-            crawler = KaipanlaCrawler()
-            
-            # 获取化工板块要闻
-            news = crawler.get_plate_news("801070")
-            
-            # 遍历要闻
-            for item in news['news_list']:
-                print(f"[{item['datetime']}] {item['content'][:50]}...")
-            
-            # 获取第二页
-            news_page2 = crawler.get_plate_news("801070", index=30)
-        """
-        # 构造请求参数
-        data_params = {
-            "a": "GetPlateNewsList",
-            "st": str(page_size),
-            "c": "APPComplexData",
-            "PhoneOSNew": "1",
-            "DeviceID": str(uuid.uuid4()),
-            "VerSion": "5.21.0.2",
-            "Index": str(index),
-            "apiv": "w42",
-            "PlateID": plate_id
-        }
-        
-        # 使用专门的要闻API地址
-        url = "https://apparticle.longhuvip.com/w1/api/index.php"
-        
-        # 使用sector_headers（与板块相关的接口使用相同的headers）
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 9; 23116PN5BC Build/PQ3A.190605.01141736)",
-            "Host": "apparticle.longhuvip.com",
-            "Connection": "Keep-Alive",
-            "Accept-Encoding": "gzip"
-        }
-        
-        try:
-            response = requests.post(
-                url,
-                data=data_params,
-                headers=headers,
-                verify=False,
-                proxies={'http': None, 'https': None},
-                timeout=timeout
-            )
-            response.raise_for_status()
-            result = response.json()
-            
-            if not result or result.get("errcode") != "0":
-                print(f"获取板块要闻失败: {result.get('errcode', 'unknown error')}")
-                return {
-                    "plate_id": plate_id,
-                    "news_list": [],
-                    "total_count": 0
-                }
-            
-            # 解析要闻列表
-            news_list = []
-            raw_list = result.get("List", [])
-            
-            for item in raw_list:
-                news_id = item.get("ID", "")
-                title = item.get("Title", "")
-                content = item.get("Content", "")
-                time_timestamp = int(item.get("Time", 0))
-                news_type = int(item.get("Type", 1))  # 1=快讯，2=新闻
-                
-                # 转换时间戳为datetime对象
-                try:
-                    news_datetime = datetime.fromtimestamp(time_timestamp)
-                except:
-                    news_datetime = None
-                
-                news_item = {
-                    "id": news_id,
-                    "title": title,
-                    "content": content,
-                    "time": time_timestamp,
-                    "datetime": news_datetime,
-                    "type": news_type,
-                    "type_name": "快讯" if news_type == 1 else "新闻"
-                }
-                
-                news_list.append(news_item)
-            
-            return {
-                "plate_id": plate_id,
-                "news_list": news_list,
-                "total_count": len(news_list)
-            }
-            
-        except Exception as e:
-            print(f"请求板块要闻失败 ({plate_id}): {e}")
-            import traceback
-            traceback.print_exc()
-            return {
-                "plate_id": plate_id,
-                "news_list": [],
-                "total_count": 0
-            }
-    
-    def get_plate_news_dataframe(self, plate_id: str, max_pages: int = 3, page_size: int = 30, timeout: int = 1600):
-        """获取指定板块的最新要闻（返回DataFrame格式）
-        
-        Args:
-            plate_id: 板块代码
-            max_pages: 最大页数，默认3页
-            page_size: 每页数量，默认30条
-            timeout: 超时时间（秒）
-            
-        Returns:
-            pd.DataFrame: 包含要闻数据的DataFrame
-                - id: 新闻ID
-                - title: 标题
-                - content: 内容
-                - datetime: 发布时间
-                - type_name: 类型名称
-        
-        示例:
-            crawler = KaipanlaCrawler()
-            
-            # 获取化工板块要闻（最多3页，共90条）
-            df = crawler.get_plate_news_dataframe("801070", max_pages=3)
-            
-            # 查看最新10条
-            print(df.head(10))
-            
-            # 筛选快讯
-            flash_news = df[df['type_name'] == '快讯']
-        """
-        all_news = []
-        
-        for page in range(max_pages):
-            index = page * page_size
-            print(f"获取第 {page + 1}/{max_pages} 页...")
-            
-            result = self.get_plate_news(
-                plate_id=plate_id,
-                index=index,
-                page_size=page_size,
-                timeout=timeout
-            )
-            
-            news_list = result.get("news_list", [])
-            
-            if not news_list:
-                print(f"第 {page + 1} 页无数据，停止获取")
-                break
-            
-            all_news.extend(news_list)
-            print(f"  获取到 {len(news_list)} 条要闻")
-        
-        if not all_news:
-            return pd.DataFrame()
-        
-        # 转换为DataFrame
-        df = pd.DataFrame(all_news)
-        
-        # 选择需要的列
-        columns = ['id', 'title', 'content', 'datetime', 'type_name']
-        df = df[columns]
-        
-        # 按时间降序排列
-        df = df.sort_values('datetime', ascending=False).reset_index(drop=True)
-        
-        print(f"\n[OK] 共获取 {len(df)} 条板块要闻")
-        
-        return df
 
     def get_sector_strength(self, sector_code, date=None, timeout=1600):
         """

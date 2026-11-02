@@ -34,7 +34,7 @@ def test_sector_ranking():
         # 打印前3只涨停股票
         for j, stock in enumerate(sector['stocks'][:3], 1):
             print(f"   {j}) {stock['股票代码']} {stock['股票名称']}")
-            print(f"      涨停价: {stock['涨停价']}, {stock['连板描述']}")
+            print(f"      涨幅: {stock['涨幅']}%, {stock['连板描述']}")
             print(f"      概念: {stock['概念标签']}")
             print(f"      主题: {stock['主题']}")
             if stock['涨停原因']:
@@ -78,10 +78,10 @@ def test_specific_sector():
         
         for i, stock in enumerate(chip_sector['stocks'], 1):
             print(f"\n{i}. {stock['股票代码']} {stock['股票名称']}")
-            print(f"   涨停价: {stock['涨停价']}")
+            print(f"   涨幅: {stock['涨幅']}%")
             print(f"   {stock['连板描述']} (连板{stock['连板次数']}次)")
             print(f"   成交额: {stock['成交额']:,}")
-            print(f"   总市值: {stock['总市值']:,}")
+            print(f"   实际流通市值: {stock['实际流通市值']:,}")
             print(f"   概念标签: {stock['概念标签']}")
             print(f"   主题: {stock['主题']}")
             print(f"   涨停原因: {stock['涨停原因'][:200]}...")
