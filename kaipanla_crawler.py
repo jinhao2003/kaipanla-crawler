@@ -502,11 +502,11 @@ class KaipanlaCrawler:
                 
                 # 解析该板块的涨停股票
                 # 原始数据数组结构（基于实际API返回）:
-                # [0]股票代码, [1]股票名称, [2]?, [3]?, [4]涨停价,
-                # [5]?, [6]首次封板时间(Unix时间戳), [7]?, [8]流通市值(元), [9]连板天数,
-                # [10]连板次数, [11]概念标签, [12]封单额(元), [13]主力资金(元),
-                # [14]换手率(%), [15]总市值(元), [16]涨停原因, [17]主题, [18]是否首板
-                # 注意: 该API不提供个股成交额数据
+                # [0]股票代码, [1]股票名称, [2]?, [3]?, [4]涨幅(%),
+                # [5]?, [6]首次封板时间(Unix时间戳), [7]?, [8]封单额(元), [9]连板天数,
+                # [10]连板次数, [11]概念标签, [12]主力净额(元), [13]成交额(元),
+                # [14]换手率(%), [15]实际流通市值(元), [16]涨停原因, [17]主题, [18]是否首板
+                # 与 get_historical_broken_limit_up 的数组格式一致
                 for stock in sector_data.get("StockList", []):
                     if len(stock) >= 19:  # 确保数据完整
                         # 首次封板时间是Unix时间戳，按北京时间转换为 HH:MM:SS
@@ -522,17 +522,16 @@ class KaipanlaCrawler:
                         stock_info = {
                             "股票代码": stock[0],
                             "股票名称": stock[1],
-                            "涨停价": round(stock[4], 2) if stock[4] else 0,
-                            "成交额": 0,  # 该API不提供个股成交额，需要从其他数据源获取
-                            "流通市值": stock[8] if stock[8] else 0,  # 流通市值（元）
+                            "涨幅": round(stock[4], 2) if stock[4] else 0,  # 涨幅（%）
+                            "成交额": stock[13] if stock[13] else 0,  # 成交额（元）
                             "连板天数": stock[9],
                             "连板次数": stock[10],
                             "概念标签": stock[11],
-                            "封单额": stock[12] if stock[12] else 0,  # 封单额（元）
-                            "主力资金": stock[13] if stock[13] else 0,  # 主力资金净额（元）
+                            "封单额": stock[8] if stock[8] else 0,  # 封单额（元）
+                            "主力资金": stock[12] if stock[12] else 0,  # 主力资金净额（元）
                             "首次封板时间": seal_time,  # 首次封板时间（已格式化）
                             "换手率": stock[14] if stock[14] else 0,  # 换手率（%）
-                            "总市值": stock[15] if stock[15] else 0,  # 总市值（元）
+                            "实际流通市值": stock[15] if stock[15] else 0,  # 实际流通市值（元）
                             "涨停原因": stock[16] if stock[16] else "",
                             "主题": stock[17] if stock[17] else "",
                             "是否首板": stock[18] if len(stock) > 18 else 0,
